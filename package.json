@@ -1,0 +1,105 @@
+{
+  "name": "o-phim",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron/main.js",
+  "dependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^14.3.1",
+    "@testing-library/user-event": "^14.6.1",
+    "axios": "^1.16.0",
+    "boxicons": "^2.1.4",
+    "cross-env": "^10.1.0",
+    "hls.js": "^1.6.16",
+    "query-string": "^9.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-helmet": "^6.1.0",
+    "react-router-dom": "^6.30.0",
+    "react-scripts": "^5.0.1",
+    "sass": "1.69.5",
+    "swiper": "^11.1.15",
+    "web-vitals": "^5.2.0"
+  },
+  "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
+    "start": "node scripts/start-dev.js",
+    "start:react": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
+    "serve": "node server.js",
+    "prepare:electron-icon": "node scripts/generate-electron-icon.js",
+    "prebuild": "npm run check:font-loading",
+    "build": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
+    "electron:dev": "npm run prepare:electron-icon && npm run build && electron .",
+    "electron:pack": "npm run prepare:electron-icon && npm run build && electron-builder --dir",
+    "electron:dist": "npm run prepare:electron-icon && npm run build && electron-builder",
+    "check:font-loading": "node scripts/check-font-loading.js",
+    "check:vercel-routing": "node scripts/check-vercel-routing.js",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
+    "gh-pages": "^6.3.0",
+    "png-to-ico": "^3.0.1",
+    "pngjs": "^7.0.0",
+    "rcedit": "^5.0.2"
+  },
+  "build": {
+    "extends": null,
+    "appId": "com.ophim.desktop",
+    "productName": "O Phim",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "server.js",
+      "package.json"
+    ],
+    "afterPack": "scripts/set-electron-icon.js",
+    "asar": true,
+    "win": {
+      "icon": "public/logo.png",
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.entertainment"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo"
+    }
+  }
+}
