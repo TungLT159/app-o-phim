@@ -1,11 +1,26 @@
 const path = require("path");
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { startAppServer } = require("../server");
+const { createWatchHistoryStore } = require("./watchHistoryStore");
 
 const appIcon = path.join(__dirname, "..", "build", "logo.png");
 
 let mainWindow;
 let appServer;
+let watchHistoryStore;
+
+function getWatchHistoryStore() {
+  if (!watchHistoryStore) {
+    watchHistoryStore = createWatchHistoryStore(path.join(app.getPath("userData"), "watch-history.json"));
+  }
+  return watchHistoryStore;
+}
+
+function registerWatchHistoryHandlers() {
+  ipcMain.handle("watch-history:read", () => getWatchHistoryStore().read());
+  ipcMain.handle("watch-history:write", (_event, history) => getWatchHistoryStore().write(history));
+  ipcMain.handle("watch-history:clear", () => getWatchHistoryStore().clear());
+}
 
 async function createMainWindow() {
   appServer = await startAppServer({
@@ -22,6 +37,7 @@ async function createMainWindow() {
     icon: appIcon,
     title: "O Phim",
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -30,6 +46,8 @@ async function createMainWindow() {
 
   await mainWindow.loadURL(appServer.url);
 }
+
+registerWatchHistoryHandlers();
 
 async function closeAppServer() {
   if (!appServer) return;
@@ -71,3 +89,8 @@ app.on("before-quit", (event) => {
       app.quit();
     });
 });
+
+module.exports = {
+  createMainWindow,
+  registerWatchHistoryHandlers,
+};

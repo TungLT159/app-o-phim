@@ -11,6 +11,7 @@ import {
   saveWatchProgress,
   getWatchProgress,
   shouldShowContinueWatching,
+  flushWatchHistory,
 } from "../../utils/watchHistoryManager";
 import "./detail.scss";
 import SimilarMovies from "../../components/similar-movies/SimilarMovies";
@@ -163,22 +164,38 @@ const Detail = () => {
   }, [item]);
 
   useEffect(() => {
+    let isCancelled = false;
+
     clearAutoPlayTimers();
     setShowContinueWatching(false);
     setSavedProgress(null);
 
-    if (!currentEp) return;
+    if (!currentEp) return undefined;
 
-    const progress = getEpisodeProgressKeysForRead(currentEp)
-      .map((episodeKey) => getWatchProgress(id, episodeKey))
-      .find(Boolean);
-    if (
-      progress &&
-      shouldShowContinueWatching(progress.currentTime, progress.duration)
-    ) {
-      setSavedProgress(progress);
-      setShowContinueWatching(true);
-    }
+    const loadSavedProgress = async () => {
+      const progressResults = await Promise.all(
+        getEpisodeProgressKeysForRead(currentEp).map((episodeKey) =>
+          getWatchProgress(id, episodeKey),
+        ),
+      );
+
+      if (isCancelled) return;
+
+      const progress = progressResults.find(Boolean);
+      if (
+        progress &&
+        shouldShowContinueWatching(progress.currentTime, progress.duration)
+      ) {
+        setSavedProgress(progress);
+        setShowContinueWatching(true);
+      }
+    };
+
+    loadSavedProgress().catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
   }, [clearAutoPlayTimers, currentEp, id]);
 
   useEffect(() => {
@@ -291,7 +308,7 @@ const Detail = () => {
 
     let hasTriggeredAutoPlay = false;
 
-    const persistCurrentProgress = () => {
+    const persistCurrentProgress = ({ flush = false } = {}) => {
       const currentVideo = videoRef.current || video;
       if (
         currentVideo &&
@@ -300,7 +317,7 @@ const Detail = () => {
         currentVideo.currentTime > 0 &&
         currentVideo.duration > 0
       ) {
-        saveWatchProgress(
+        const savePromise = saveWatchProgress(
           id,
           getEpisodeProgressKey(currentEp),
           currentVideo.currentTime,
@@ -311,16 +328,22 @@ const Detail = () => {
             slug: item.slug,
           },
         );
+
+        if (flush) {
+          Promise.resolve(savePromise).finally(() => {
+            flushWatchHistory();
+          });
+        }
       }
     };
 
     const handlePageHide = () => {
-      persistCurrentProgress();
+      persistCurrentProgress({ flush: true });
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        persistCurrentProgress();
+        persistCurrentProgress({ flush: true });
       }
     };
 
@@ -386,7 +409,7 @@ const Detail = () => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      persistCurrentProgress();
+      persistCurrentProgress({ flush: true });
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("ended", handleVideoEnded);
       window.removeEventListener("pagehide", handlePageHide);

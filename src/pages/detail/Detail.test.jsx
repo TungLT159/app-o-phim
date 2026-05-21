@@ -5,6 +5,13 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import Detail from "./Detail";
 import tmdbApi from "../../api/tmdbApi";
 import { clearAllEpisodeLinks } from "../../utils/episodeLinkManager";
+import {
+  flushWatchHistory,
+  formatTime,
+  getWatchProgress,
+  saveWatchProgress,
+  shouldShowContinueWatching,
+} from "../../utils/watchHistoryManager";
 
 jest.mock("hls.js", () => ({
   isSupported: () => false,
@@ -20,6 +27,58 @@ jest.mock("../../utils/tmdbImageFetcher", () => ({
     Promise.resolve({ posterUrl: "/poster.jpg", backdropUrl: "/backdrop.jpg", overview: "" }),
   ),
 }));
+
+jest.mock("../../utils/watchHistoryManager", () => {
+  const getHistory = () => {
+    const history =
+      global.localStorage.getItem("ophim_watch_history:v1") ||
+      global.localStorage.getItem("ophim_watch_history");
+    return history ? JSON.parse(history) : [];
+  };
+
+  return {
+    getWatchProgress: jest.fn((movieId, episodeName) =>
+      Promise.resolve(
+        getHistory().find((item) => item.key === `${movieId}_${episodeName}`) || null,
+      ),
+    ),
+    saveWatchProgress: jest.fn((movieId, episodeName, currentTime, duration, movieInfo = {}) => {
+      const history = getHistory();
+      const key = `${movieId}_${episodeName}`;
+      const watchItem = {
+        key,
+        movieId,
+        episodeName,
+        currentTime,
+        duration,
+        percentage: duration > 0 ? (currentTime / duration) * 100 : 0,
+        timestamp: new Date().toISOString(),
+        movieInfo,
+      };
+      const existingIndex = history.findIndex((item) => item.key === key);
+
+      if (existingIndex === -1) {
+        history.unshift(watchItem);
+      } else {
+        history[existingIndex] = watchItem;
+      }
+
+      global.localStorage.setItem("ophim_watch_history:v1", JSON.stringify(history));
+      return Promise.resolve();
+    }),
+    flushWatchHistory: jest.fn(() => Promise.resolve()),
+    formatTime: jest.fn((seconds) => {
+      const minutes = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }),
+    shouldShowContinueWatching: jest.fn((currentTime, duration) => {
+      if (!currentTime || !duration) return false;
+      const percentage = (currentTime / duration) * 100;
+      return percentage >= 1 && percentage <= 95;
+    }),
+  };
+});
 
 jest.mock("../../components/similar-movies/SimilarMovies", () => () => (
   <div>Similar movies loaded</div>
@@ -98,9 +157,65 @@ const setMediaProperty = (element, property, value) => {
   });
 };
 
+const getMockHistory = () => {
+  const history =
+    localStorage.getItem("ophim_watch_history:v1") ||
+    localStorage.getItem("ophim_watch_history");
+  return history ? JSON.parse(history) : [];
+};
+
+const mockSaveWatchProgress = (
+  movieId,
+  episodeName,
+  currentTime,
+  duration,
+  movieInfo = {},
+) => {
+  const history = getMockHistory();
+  const key = `${movieId}_${episodeName}`;
+  const watchItem = {
+    key,
+    movieId,
+    episodeName,
+    currentTime,
+    duration,
+    percentage: duration > 0 ? (currentTime / duration) * 100 : 0,
+    timestamp: new Date().toISOString(),
+    movieInfo,
+  };
+  const existingIndex = history.findIndex((item) => item.key === key);
+
+  if (existingIndex === -1) {
+    history.unshift(watchItem);
+  } else {
+    history[existingIndex] = watchItem;
+  }
+
+  localStorage.setItem("ophim_watch_history:v1", JSON.stringify(history));
+  return Promise.resolve();
+};
+
 beforeEach(() => {
   clearAllEpisodeLinks();
   localStorage.clear();
+  jest.clearAllMocks();
+  getWatchProgress.mockImplementation((movieId, episodeName) =>
+    Promise.resolve(
+      getMockHistory().find((item) => item.key === `${movieId}_${episodeName}`) || null,
+    ),
+  );
+  saveWatchProgress.mockImplementation(mockSaveWatchProgress);
+  flushWatchHistory.mockResolvedValue(undefined);
+  formatTime.mockImplementation((seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  });
+  shouldShowContinueWatching.mockImplementation((currentTime, duration) => {
+    if (!currentTime || !duration) return false;
+    const percentage = (currentTime / duration) * 100;
+    return percentage >= 1 && percentage <= 95;
+  });
   window.scrollTo = jest.fn();
   window.HTMLElement.prototype.scrollIntoView = jest.fn();
   window.HTMLMediaElement.prototype.load = jest.fn();
@@ -270,6 +385,73 @@ test("URL episode changes load saved progress for the new episode", async () => 
   );
 });
 
+test("ignores stale async saved progress when the URL episode changes before load resolves", async () => {
+  let resolveFirstProgress;
+  getWatchProgress
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirstProgress = resolve;
+        }),
+    )
+    .mockImplementation((movieId, episodeName) =>
+      Promise.resolve(
+        episodeName === "0:tap-2"
+          ? {
+              key: `${movieId}_${episodeName}`,
+              movieId,
+              episodeName,
+              currentTime: 120,
+              duration: 1200,
+              percentage: 10,
+            }
+          : null,
+      ),
+    );
+
+  render(
+    <MemoryRouter
+      initialEntries={["/movie/test-movie"]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <Routes>
+        <Route
+          path="/:category/:id"
+          element={
+            <>
+              <NavigateToEpisodeButton />
+              <Detail />
+            </>
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await screen.findByText("Đi tới tập 2");
+
+  fireEvent.click(screen.getByText("Đi tới tập 2"));
+
+  expect(await screen.findByText(/Tiếp tục xem từ/)).toHaveTextContent(
+    "Tiếp tục xem từ 02:00?",
+  );
+
+  await act(async () => {
+    resolveFirstProgress({
+      key: "test-movie_0:tap-1",
+      movieId: "test-movie",
+      episodeName: "0:tap-1",
+      currentTime: 240,
+      duration: 1200,
+      percentage: 20,
+    });
+  });
+
+  expect(screen.getByText(/Tiếp tục xem từ/)).toHaveTextContent(
+    "Tiếp tục xem từ 02:00?",
+  );
+});
+
 test("saves final watch progress on unmount before the 5-second interval", async () => {
   const { unmount } = renderDetail();
 
@@ -288,6 +470,8 @@ test("saves final watch progress on unmount before the 5-second interval", async
     currentTime: 123,
     duration: 1200,
   });
+  expect(saveWatchProgress).toHaveBeenCalled();
+  await waitFor(() => expect(flushWatchHistory).toHaveBeenCalled());
 });
 
 test("saves final watch progress on pagehide before the 5-second interval", async () => {
@@ -309,6 +493,30 @@ test("saves final watch progress on pagehide before the 5-second interval", asyn
     currentTime: 234,
     duration: 1200,
   });
+  expect(saveWatchProgress).toHaveBeenCalled();
+  await waitFor(() => expect(flushWatchHistory).toHaveBeenCalled());
+});
+
+test("flushes final watch progress when the page becomes hidden", async () => {
+  renderDetail();
+
+  const video = await screen.findByTestId("video-player");
+  setMediaProperty(video, "currentTime", 345);
+  setMediaProperty(video, "duration", 1200);
+
+  fireEvent(video, new Event("timeupdate"));
+
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: "hidden",
+  });
+
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(saveWatchProgress).toHaveBeenCalled();
+  await waitFor(() => expect(flushWatchHistory).toHaveBeenCalled());
 });
 
 test("shows a playback error when the current episode has no playable link", async () => {

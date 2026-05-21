@@ -1,6 +1,6 @@
 import React from "react";
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const mockGetMoviesList = jest.fn();
@@ -28,6 +28,8 @@ jest.mock(
       className,
       grabCursor,
       modules,
+      navigation,
+      onSwiper,
       slidesPerView,
       spaceBetween,
       ...props
@@ -102,18 +104,20 @@ beforeEach(() => {
   mockGetMoviesList.mockReturnValue(new Promise(() => {}));
 });
 
-test("renders continue watching before theatrical movies when watch history exists", () => {
+test("renders continue watching before theatrical movies when watch history exists", async () => {
   seedHistory();
 
   renderHome();
 
-  const continueWatchingHeading = screen.getByRole("heading", {
+  const continueWatchingHeading = await screen.findByRole("heading", {
     name: "Tiếp tục xem",
   });
   const theatricalHeading = screen.getByRole("heading", { name: "Phim chiếu rạp" });
 
-  expect(
-    continueWatchingHeading.compareDocumentPosition(theatricalHeading)
-      & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
+  await waitFor(() => {
+    expect(
+      continueWatchingHeading.compareDocumentPosition(theatricalHeading)
+        & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

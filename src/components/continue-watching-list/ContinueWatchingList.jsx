@@ -6,6 +6,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { formatEpisodeDisplayName } from "../../utils/episodeDisplayName";
 import {
   getRecentInProgressMovies,
+  getRecentInProgressMoviesSnapshot,
   removeWatchProgress,
 } from "../../utils/watchHistoryManager";
 import "./continue-watching-list.scss";
@@ -22,6 +23,25 @@ const getEpisodeDisplayText = (episodeName) => {
 };
 
 const getWatchItemKey = (item) => `${item.movieId}-${item.episodeName}`;
+
+const getWatchProgressKey = (item) => item.key || `${item.movieId}_${item.episodeName}`;
+
+const getItemPercentage = (item) => {
+  const storedPercentage = Number(item.percentage);
+
+  if (Number.isFinite(storedPercentage) && storedPercentage > 0) {
+    return storedPercentage;
+  }
+
+  const currentTime = Number(item.currentTime);
+  const duration = Number(item.duration);
+
+  if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) {
+    return 0;
+  }
+
+  return (currentTime / duration) * 100;
+};
 
 const SkeletonCards = () => (
   <div
@@ -44,12 +64,18 @@ const SkeletonCards = () => (
 );
 
 const ContinueWatchingList = ({ showSkeleton = false }) => {
-  const [items, setItems] = useState(() => getRecentInProgressMovies(10));
+  const [items, setItems] = useState(() => getRecentInProgressMoviesSnapshot(10));
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [menuState, setMenuState] = useState(null);
   const longPressTimerRef = useRef(null);
+  const loadGenerationRef = useRef(0);
+  const removedKeysRef = useRef(new Set());
   const suppressNextClickRef = useRef(false);
   const menuOpenRef = useRef(false);
   const swiperRef = useRef(null);
+
+  const filterRemovedItems = (nextItems) =>
+    nextItems.filter((item) => !removedKeysRef.current.has(getWatchProgressKey(item)));
 
   const stopAutoplay = () => {
     swiperRef.current?.autoplay?.stop?.();
@@ -58,6 +84,26 @@ const ContinueWatchingList = ({ showSkeleton = false }) => {
   const startAutoplay = () => {
     swiperRef.current?.autoplay?.start?.();
   };
+
+  useEffect(() => {
+    let isMounted = true;
+    const generation = loadGenerationRef.current + 1;
+
+    loadGenerationRef.current = generation;
+
+    getRecentInProgressMovies(10).then((nextItems) => {
+      if (!isMounted || loadGenerationRef.current !== generation) {
+        return;
+      }
+
+      setItems(filterRemovedItems(nextItems));
+      setHasLoaded(true);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const closeMenu = () => {
@@ -119,20 +165,33 @@ const ContinueWatchingList = ({ showSkeleton = false }) => {
     clearTimeout(longPressTimerRef.current);
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
     if (!menuState?.item) {
       return;
     }
 
-    removeWatchProgress(menuState.item.movieId, menuState.item.episodeName);
-    setItems(getRecentInProgressMovies(10));
+    const removedItem = menuState.item;
+    const removedKey = getWatchProgressKey(removedItem);
+    const generation = loadGenerationRef.current + 1;
+
+    removedKeysRef.current.add(removedKey);
+    loadGenerationRef.current = generation;
+    setItems((currentItems) => currentItems.filter((item) => getWatchProgressKey(item) !== removedKey));
     suppressNextClickRef.current = false;
     menuOpenRef.current = false;
     setMenuState(null);
     startAutoplay();
+
+    await removeWatchProgress(removedItem.movieId, removedItem.episodeName);
+    const nextItems = await getRecentInProgressMovies(10);
+
+    if (loadGenerationRef.current === generation) {
+      setItems(filterRemovedItems(nextItems));
+      setHasLoaded(true);
+    }
   };
 
-  if (!showSkeleton && items.length === 0) {
+  if (!showSkeleton && hasLoaded && items.length === 0) {
     return null;
   }
 
@@ -175,7 +234,7 @@ const ContinueWatchingList = ({ showSkeleton = false }) => {
             const slug = movieInfo.slug || item.movieId;
             const title = movieInfo.title || item.movieId;
             const poster = movieInfo.poster || FALLBACK_POSTER;
-            const percentage = Math.round(item.percentage || 0);
+            const percentage = Math.round(getItemPercentage(item));
             const clampedPercentage = Math.min(Math.max(percentage, 0), 100);
             const resumeUrl = `/movie/${slug}?ep=${encodeURIComponent(item.episodeName || "")}`;
             const episodeDisplayText = getEpisodeDisplayText(item.episodeName);

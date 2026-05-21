@@ -2,9 +2,20 @@ import React from "react";
 import fs from "fs";
 import path from "path";
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import ContinueWatchingList from "./ContinueWatchingList";
+import {
+  getRecentInProgressMovies,
+  getRecentInProgressMoviesSnapshot,
+  removeWatchProgress,
+} from "../../utils/watchHistoryManager";
+
+jest.mock("../../utils/watchHistoryManager", () => ({
+  getRecentInProgressMovies: jest.fn(),
+  getRecentInProgressMoviesSnapshot: jest.fn(),
+  removeWatchProgress: jest.fn(),
+}));
 
 const AUTOPLAY_MODULE_MARKER = "autoplay-module";
 const NAVIGATION_MODULE_MARKER = "navigation-module";
@@ -59,6 +70,11 @@ jest.mock(
 );
 
 const WATCH_HISTORY_KEY = "ophim_watch_history:v1";
+const mockedGetRecentInProgressMovies = getRecentInProgressMovies;
+const mockedGetRecentInProgressMoviesSnapshot = getRecentInProgressMoviesSnapshot;
+const mockedRemoveWatchProgress = removeWatchProgress;
+let mockRecentInProgressMovies;
+let mockRecentInProgressMoviesSnapshot;
 const styles = fs.readFileSync(
   path.join(__dirname, "continue-watching-list.scss"),
   "utf8",
@@ -105,9 +121,28 @@ const renderContinueWatchingListWithLocation = () =>
     </MemoryRouter>,
   );
 
+const cloneItems = (items) => items.map((item) => ({ ...item, movieInfo: { ...item.movieInfo } }));
+
 const seedHistory = (items) => {
+  mockRecentInProgressMovies = cloneItems(items);
+  mockRecentInProgressMoviesSnapshot = cloneItems(items);
   localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(items));
 };
+
+const makeHistoryItem = ({ movieId = "movie-1", title = "Test Movie" } = {}) => ({
+  key: `${movieId}_0:tap-1`,
+  movieId,
+  episodeName: "0:tap-1",
+  currentTime: 120,
+  duration: 600,
+  percentage: 20,
+  timestamp: "2026-05-18T00:00:00.000Z",
+  movieInfo: {
+    title,
+    poster: "/test-poster.jpg",
+    slug: movieId,
+  },
+});
 
 beforeEach(() => {
   mockSwiper = {
@@ -116,15 +151,99 @@ beforeEach(() => {
       stop: jest.fn(),
     },
   };
+  mockRecentInProgressMovies = [];
+  mockRecentInProgressMoviesSnapshot = [];
+  mockedGetRecentInProgressMovies.mockImplementation(() => new Promise(() => {}));
+  mockedGetRecentInProgressMoviesSnapshot.mockImplementation(() =>
+    cloneItems(mockRecentInProgressMoviesSnapshot),
+  );
+  mockedRemoveWatchProgress.mockImplementation((movieId, episodeName) => {
+    const key = `${movieId}_${episodeName}`;
+    mockRecentInProgressMovies = mockRecentInProgressMovies.filter((item) => item.key !== key);
+    mockRecentInProgressMoviesSnapshot = mockRecentInProgressMoviesSnapshot.filter(
+      (item) => item.key !== key,
+    );
+    localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(cloneItems(mockRecentInProgressMovies)));
+    return Promise.resolve();
+  });
   localStorage.clear();
 });
 
-test("renders nothing when there is no in-progress history", () => {
+test("renders nothing when there is no in-progress history", async () => {
   seedHistory([]);
+  mockedGetRecentInProgressMovies.mockResolvedValueOnce([]);
 
   renderContinueWatchingList();
 
-  expect(screen.queryByRole("heading", { name: "Tiếp tục xem" })).not.toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.queryByRole("heading", { name: "Tiếp tục xem" })).not.toBeInTheDocument();
+  });
+});
+
+test("uses the snapshot for immediate render before the async history load resolves", async () => {
+  const asyncHistoryLoaded = Promise.resolve([makeHistoryItem({ movieId: "movie-2", title: "Async Movie" })]);
+  seedHistory([makeHistoryItem({ movieId: "movie-1", title: "Snapshot Movie" })]);
+  mockedGetRecentInProgressMovies.mockReturnValueOnce(asyncHistoryLoaded);
+
+  renderContinueWatchingList();
+
+  expect(screen.getByText("Snapshot Movie")).toBeInTheDocument();
+  expect(mockedGetRecentInProgressMoviesSnapshot).toHaveBeenCalledWith(10);
+  expect(mockedGetRecentInProgressMovies).toHaveBeenCalledWith(10);
+  expect(await screen.findByText("Async Movie")).toBeInTheDocument();
+  expect(screen.queryByText("Snapshot Movie")).not.toBeInTheDocument();
+});
+
+test("keeps the section mounted until async load confirms there are no items", async () => {
+  let resolveLoad;
+  seedHistory([]);
+  mockedGetRecentInProgressMovies.mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveLoad = resolve;
+    }),
+  );
+
+  renderContinueWatchingList();
+
+  expect(screen.getByRole("heading", { name: "Tiếp tục xem" })).toBeInTheDocument();
+
+  await act(async () => {
+    resolveLoad([]);
+  });
+
+  await waitFor(() => {
+    expect(screen.queryByRole("heading", { name: "Tiếp tục xem" })).not.toBeInTheDocument();
+  });
+});
+
+test("does not let a late initial load restore an optimistically removed item", async () => {
+  let resolveInitialLoad;
+  const removedItem = makeHistoryItem({ movieId: "movie-1", title: "Removed Movie" });
+  seedHistory([removedItem]);
+  mockedGetRecentInProgressMovies
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveInitialLoad = resolve;
+      }),
+    )
+    .mockResolvedValueOnce([]);
+
+  renderContinueWatchingList();
+
+  fireEvent.contextMenu(screen.getByRole("link", { name: /Removed Movie/i }), {
+    clientX: 30,
+    clientY: 60,
+  });
+  fireEvent.click(screen.getByRole("menuitem", { name: "Xóa khỏi danh sách" }));
+
+  expect(screen.queryByText("Removed Movie")).not.toBeInTheDocument();
+
+  await act(async () => {
+    resolveInitialLoad([removedItem]);
+  });
+
+  expect(screen.queryByText("Removed Movie")).not.toBeInTheDocument();
+  expect(mockedGetRecentInProgressMovies).toHaveBeenCalledTimes(2);
 });
 
 test("renders a continue watching card linked to the resume episode", () => {
