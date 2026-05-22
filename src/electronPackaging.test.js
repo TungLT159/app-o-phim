@@ -29,6 +29,7 @@ describe("Electron packaging icon configuration", () => {
       provider: "github",
       owner: "TungLT159",
       repo: "app-o-phim",
+      releaseType: "release",
     });
     expect(packageJson.build.nsis.artifactName).toBe("O-Phim-Setup-${version}.${ext}");
     expect(packageJson.build.portable.artifactName).toBe("O-Phim-Portable-${version}.${ext}");

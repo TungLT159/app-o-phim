@@ -84,7 +84,8 @@
     "publish": {
       "provider": "github",
       "owner": "TungLT159",
-      "repo": "app-o-phim"
+      "repo": "app-o-phim",
+      "releaseType": "release"
     },
     "afterPack": "scripts/set-electron-icon.js",
     "asar": true,
