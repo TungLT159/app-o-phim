@@ -21,10 +21,16 @@ describe("Electron packaging icon configuration", () => {
 
   test("publishes desktop updates through GitHub Releases", () => {
     expect(packageJson.dependencies["electron-updater"]).toBeDefined();
+    expect(packageJson.scripts["release:win"]).toBe("npm run electron:publish:win");
+    expect(packageJson.scripts["electron:publish:win"]).toBe(
+      "npm run prepare:electron-icon && npm run build && electron-builder --win nsis --publish always"
+    );
     expect(packageJson.build.publish).toEqual({
       provider: "github",
       owner: "TungLT159",
       repo: "app-o-phim",
     });
+    expect(packageJson.build.nsis.artifactName).toBe("O-Phim-Setup-${version}.${ext}");
+    expect(packageJson.build.portable.artifactName).toBe("O-Phim-Portable-${version}.${ext}");
   });
 });
