@@ -34,6 +34,7 @@
     "electron:dev": "npm run prepare:electron-icon && npm run build && electron .",
     "electron:pack": "npm run prepare:electron-icon && npm run build && electron-builder --dir",
     "electron:dist": "npm run prepare:electron-icon && npm run build && electron-builder",
+    "electron:publish:win": "npm run prepare:electron-icon && npm run build && electron-builder --win nsis --publish always",
     "check:font-loading": "node scripts/check-font-loading.js",
     "check:vercel-routing": "node scripts/check-vercel-routing.js",
     "test": "react-scripts test",
@@ -107,6 +108,9 @@
         "deb"
       ],
       "category": "AudioVideo"
-    }
+    },
+    "nsis": {
+  "artifactName": "O-Phim-Setup-${version}.${ext}"
+}
   }
 }
