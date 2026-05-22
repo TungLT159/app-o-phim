@@ -18,4 +18,13 @@ describe("Electron packaging icon configuration", () => {
     expect(fs.existsSync(path.join(root, "scripts", "generate-electron-icon.js"))).toBe(true);
     expect(fs.existsSync(path.join(root, "scripts", "set-electron-icon.js"))).toBe(true);
   });
+
+  test("publishes desktop updates through GitHub Releases", () => {
+    expect(packageJson.dependencies["electron-updater"]).toBeDefined();
+    expect(packageJson.build.publish).toEqual({
+      provider: "github",
+      owner: "TungLT159",
+      repo: "app-o-phim",
+    });
+  });
 });

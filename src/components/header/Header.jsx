@@ -13,6 +13,11 @@ const Header = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [desktopNavigation, setDesktopNavigation] = useState({
+    isAvailable: false,
+    canGoBack: false,
+    canGoForward: false,
+  });
   const {
     keyword,
     suggestions,
@@ -44,6 +49,61 @@ const Header = () => {
     return () => window.removeEventListener("scroll", shrinkHeader);
   }, []);
 
+  useEffect(() => {
+    const navigation = window.ophimNavigation;
+    if (!navigation) return undefined;
+
+    let isMounted = true;
+    const applyState = (state = {}) => {
+      if (!isMounted) return;
+      setDesktopNavigation({
+        isAvailable: true,
+        canGoBack: Boolean(state.canGoBack),
+        canGoForward: Boolean(state.canGoForward),
+      });
+    };
+
+    navigation.getState().then(applyState).catch(() => applyState());
+    const unsubscribe = navigation.onStateChange?.(applyState);
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const navigation = window.ophimNavigation;
+    if (!navigation) return;
+
+    navigation
+      .getState()
+      .then((state = {}) => {
+        setDesktopNavigation({
+          isAvailable: true,
+          canGoBack: Boolean(state.canGoBack),
+          canGoForward: Boolean(state.canGoForward),
+        });
+      })
+      .catch(() => {});
+  }, [pathname]);
+
+  const handleDesktopBack = () => {
+    if (desktopNavigation.canGoBack) {
+      window.ophimNavigation?.back();
+    }
+  };
+
+  const handleDesktopForward = () => {
+    if (desktopNavigation.canGoForward) {
+      window.ophimNavigation?.forward();
+    }
+  };
+
+  const handleDesktopReload = () => {
+    window.ophimNavigation?.reload();
+  };
+
   const toggleSubmenu = (index) => {
     setOpenSubmenu(openSubmenu === index ? null : index);
   };
@@ -57,6 +117,37 @@ const Header = () => {
             <img src={logo} alt="" />
             <Link to="/">Ổ Phim</Link>
           </div>
+
+          {desktopNavigation.isAvailable && (
+            <div className="desktop-navigation-controls" aria-label="Điều hướng ứng dụng">
+              <button
+                type="button"
+                aria-label="Quay lại"
+                title="Quay lại"
+                disabled={!desktopNavigation.canGoBack}
+                onClick={handleDesktopBack}
+              >
+                <i className="bx bx-arrow-back" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                aria-label="Tiến tới"
+                title="Tiến tới"
+                disabled={!desktopNavigation.canGoForward}
+                onClick={handleDesktopForward}
+              >
+                <i className="bx bx-arrow-back desktop-navigation-controls__forward-icon" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                aria-label="Tải lại"
+                title="Tải lại"
+                onClick={handleDesktopReload}
+              >
+                <i className="bx bx-refresh" aria-hidden="true"></i>
+              </button>
+            </div>
+          )}
 
           {/* Hamburger */}
           <button

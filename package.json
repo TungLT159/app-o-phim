@@ -10,6 +10,7 @@
     "axios": "^1.16.0",
     "boxicons": "^2.1.4",
     "cross-env": "^10.1.0",
+    "electron-updater": "^6.8.3",
     "hls.js": "^1.6.16",
     "query-string": "^9.3.1",
     "react": "^18.3.1",
@@ -36,6 +37,7 @@
     "check:font-loading": "node scripts/check-font-loading.js",
     "check:vercel-routing": "node scripts/check-vercel-routing.js",
     "test": "react-scripts test",
+    "test:electron": "jest electron/watchHistoryStore.test.js electron/preload.test.js electron/main.test.js electron/updateService.test.js --env=node --runInBand",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -77,6 +79,11 @@
       "server.js",
       "package.json"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "TungLT159",
+      "repo": "app-o-phim"
+    },
     "afterPack": "scripts/set-electron-icon.js",
     "asar": true,
     "win": {

@@ -1,13 +1,26 @@
 const path = require("path");
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { startAppServer } = require("../server");
+const { createUpdateService } = require("./updateService");
 const { createWatchHistoryStore } = require("./watchHistoryStore");
 
 const appIcon = path.join(__dirname, "..", "build", "logo.png");
 
 let mainWindow;
 let appServer;
+let updateService;
 let watchHistoryStore;
+
+function getMainWindow() {
+  return mainWindow;
+}
+
+function getUpdateService() {
+  if (!updateService) {
+    updateService = createUpdateService({ app, getWindow: getMainWindow });
+  }
+  return updateService;
+}
 
 function getWatchHistoryStore() {
   if (!watchHistoryStore) {
@@ -20,6 +33,55 @@ function registerWatchHistoryHandlers() {
   ipcMain.handle("watch-history:read", () => getWatchHistoryStore().read());
   ipcMain.handle("watch-history:write", (_event, history) => getWatchHistoryStore().write(history));
   ipcMain.handle("watch-history:clear", () => getWatchHistoryStore().clear());
+}
+
+function getNavigationWindow() {
+  return BrowserWindow.getFocusedWindow?.() || mainWindow;
+}
+
+function getNavigationState() {
+  const window = getNavigationWindow();
+
+  return {
+    canGoBack: Boolean(window?.webContents?.canGoBack?.()),
+    canGoForward: Boolean(window?.webContents?.canGoForward?.()),
+  };
+}
+
+function sendNavigationState(window = mainWindow) {
+  window?.webContents?.send?.("navigation:state-changed", getNavigationState());
+}
+
+function registerNavigationHandlers() {
+  ipcMain.handle("navigation:back", () => {
+    const window = getNavigationWindow();
+    if (window?.webContents?.canGoBack?.()) {
+      window.webContents.goBack();
+    }
+    return getNavigationState();
+  });
+
+  ipcMain.handle("navigation:forward", () => {
+    const window = getNavigationWindow();
+    if (window?.webContents?.canGoForward?.()) {
+      window.webContents.goForward();
+    }
+    return getNavigationState();
+  });
+
+  ipcMain.handle("navigation:reload", () => {
+    getNavigationWindow()?.webContents?.reload?.();
+    return getNavigationState();
+  });
+
+  ipcMain.handle("navigation:get-state", () => getNavigationState());
+}
+
+function registerUpdateHandlers() {
+  ipcMain.handle("updates:check", () => getUpdateService().checkForUpdates());
+  ipcMain.handle("updates:download", () => getUpdateService().downloadUpdate());
+  ipcMain.handle("updates:install", () => getUpdateService().installUpdate());
+  ipcMain.handle("updates:get-state", () => getUpdateService().getState());
 }
 
 async function createMainWindow() {
@@ -44,10 +106,19 @@ async function createMainWindow() {
     },
   });
 
+  mainWindow.webContents?.on?.("did-navigate", () => sendNavigationState(mainWindow));
+  mainWindow.webContents?.on?.("did-navigate-in-page", () => sendNavigationState(mainWindow));
+  mainWindow.webContents?.on?.("did-finish-load", () => sendNavigationState(mainWindow));
+
   await mainWindow.loadURL(appServer.url);
+  getUpdateService().checkForUpdates().catch((error) => {
+    console.error(error);
+  });
 }
 
 registerWatchHistoryHandlers();
+registerNavigationHandlers();
+registerUpdateHandlers();
 
 async function closeAppServer() {
   if (!appServer) return;
@@ -92,5 +163,8 @@ app.on("before-quit", (event) => {
 
 module.exports = {
   createMainWindow,
+  getNavigationState,
+  registerNavigationHandlers,
+  registerUpdateHandlers,
   registerWatchHistoryHandlers,
 };
