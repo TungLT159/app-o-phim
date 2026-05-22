@@ -4,6 +4,15 @@ function getUpdateVersion(info) {
   return info?.version || "";
 }
 
+function getUpdateErrorMessage(error) {
+  const message = error?.message || "";
+  if (message.includes("Unable to find latest version on GitHub") || message.includes("Cannot find latest.yml")) {
+    return "Chua co ban phat hanh hop le de cap nhat. Vui long thu lai sau.";
+  }
+
+  return message || "Khong the kiem tra cap nhat";
+}
+
 function createUpdateService({ app, getWindow }) {
   let state = { status: app.isPackaged ? "idle" : "disabled" };
   let eventsWired = false;
@@ -36,7 +45,7 @@ function createUpdateService({ app, getWindow }) {
       broadcast({ status: "downloaded", version: getUpdateVersion(info) });
     });
     autoUpdater.on("error", (error) => {
-      broadcast({ status: "error", message: error?.message || "Khong the kiem tra cap nhat" });
+      broadcast({ status: "error", message: getUpdateErrorMessage(error) });
     });
   };
 
@@ -74,4 +83,4 @@ function createUpdateService({ app, getWindow }) {
   };
 }
 
-module.exports = { createUpdateService };
+module.exports = { createUpdateService, getUpdateErrorMessage };

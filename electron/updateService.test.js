@@ -55,4 +55,22 @@ describe("update service", () => {
       version: "0.2.0",
     });
   });
+
+  test("shows a concise message when GitHub releases are not configured for updates", () => {
+    const { createUpdateService } = require("./updateService");
+    const service = createUpdateService({ app, getWindow: () => window });
+    service.wireAutoUpdaterEvents();
+
+    const getHandler = (eventName) => autoUpdater.on.mock.calls.find(([event]) => event === eventName)[1];
+    getHandler("error")(
+      new Error(
+        "Cannot parse releases feed: Error: Unable to find latest version on GitHub (https://github.com/TungLT159/app-o-phim/releases/latest), please ensure a production release exists"
+      )
+    );
+
+    expect(service.getState()).toEqual({
+      status: "error",
+      message: "Chua co ban phat hanh hop le de cap nhat. Vui long thu lai sau.",
+    });
+  });
 });
