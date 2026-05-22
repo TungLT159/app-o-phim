@@ -1,6 +1,6 @@
 {
   "name": "o-phim",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "main": "electron/main.js",
   "dependencies": {
@@ -110,7 +110,7 @@
       "category": "AudioVideo"
     },
     "nsis": {
-  "artifactName": "O-Phim-Setup-${version}.${ext}"
-}
+      "artifactName": "O-Phim-Setup-${version}.${ext}"
+    }
   }
 }
