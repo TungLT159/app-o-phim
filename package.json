@@ -34,8 +34,12 @@
     "electron:dev": "npm run prepare:electron-icon && npm run build && electron .",
     "electron:pack": "npm run prepare:electron-icon && npm run build && electron-builder --dir",
     "electron:dist": "npm run prepare:electron-icon && npm run build && electron-builder",
-    "electron:publish:win": "npm run prepare:electron-icon && npm run build && electron-builder --win nsis --publish always",
+    "prepare:mac-build": "node scripts/clear-macos-xattrs.js",
+    "electron:dist:mac": "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip",
+    "electron:publish:win": "node scripts/check-gh-token.js && npm run prepare:electron-icon && npm run build && electron-builder --win nsis --publish always",
+    "electron:publish:mac": "node scripts/check-gh-token.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always",
     "release:win": "npm run electron:publish:win",
+    "release:mac": "npm run electron:publish:mac",
     "check:font-loading": "node scripts/check-font-loading.js",
     "check:vercel-routing": "node scripts/check-vercel-routing.js",
     "test": "react-scripts test",
@@ -98,11 +102,17 @@
       ]
     },
     "mac": {
+      "artifactName": "O-Phim-Mac-${version}-${arch}.${ext}",
+      "identity": null,
+      "icon": "public/logo.png",
       "target": [
         "dmg",
         "zip"
       ],
       "category": "public.app-category.entertainment"
+    },
+    "dmg": {
+      "artifactName": "O-Phim-Mac-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
