@@ -4,6 +4,7 @@
   "private": true,
   "main": "electron/main.js",
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
     "@testing-library/user-event": "^14.6.1",
@@ -35,7 +36,7 @@
     "electron:pack": "npm run prepare:electron-icon && npm run build && electron-builder --dir",
     "electron:dist": "npm run prepare:electron-icon && npm run build && electron-builder",
     "prepare:mac-build": "node scripts/clear-macos-xattrs.js",
-    "electron:dist:mac": "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip",
+    "electron:dist:mac": "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip -c.mac.identity=null -c.mac.hardenedRuntime=false",
     "electron:publish:win": "node scripts/check-gh-token.js && npm run prepare:electron-icon && npm run build && electron-builder --win nsis --publish always",
     "electron:publish:mac": "node scripts/check-gh-token.js && node scripts/check-mac-signing.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always",
     "release:win": "npm run electron:publish:win",
@@ -93,8 +94,10 @@
     },
     "afterPack": "scripts/set-electron-icon.js",
     "afterExtract": "scripts/clear-electron-builder-xattrs.js",
-    "beforeSign": "scripts/clear-electron-builder-xattrs.js",
     "asar": true,
+    "asarUnpack": [
+      "node_modules/@ffmpeg-installer/**/*"
+    ],
     "win": {
       "icon": "public/logo.png",
       "signAndEditExecutable": false,

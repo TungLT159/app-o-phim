@@ -4,6 +4,7 @@ import CustomVideoPlayer, {
 } from "../../components/video-player/CustomVideoPlayer";
 import { formatEpisodeDisplayName } from "../../utils/episodeDisplayName";
 import { formatTime } from "../../utils/watchHistoryManager";
+import DownloadButton from "../../components/download-button/DownloadButton";
 
 const WatchSection = ({
   item,
@@ -74,7 +75,9 @@ const WatchSection = ({
           </p>
         )}
       </div>
-
+      <div className="download-section">
+        <DownloadButton item={item} currentEpisode={currentEpisode} />
+      </div>
       {item.episode_current !== "Trailer" && episodeList.length > 0 && (
         <>
           {/* Auto-play Toggle */}

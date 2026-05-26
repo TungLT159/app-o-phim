@@ -35,9 +35,14 @@ describe("Electron packaging icon configuration", () => {
     expect(packageJson.build.portable.artifactName).toBe("O-Phim-Portable-${version}.${ext}");
   });
 
+  test("packages the bundled ffmpeg executable outside app.asar", () => {
+    expect(packageJson.dependencies["@ffmpeg-installer/ffmpeg"]).toBeDefined();
+    expect(packageJson.build.asarUnpack).toContain("node_modules/@ffmpeg-installer/**/*");
+  });
+
   test("builds macOS dmg with the zip artifact required for auto updates", () => {
     expect(packageJson.scripts["electron:dist:mac"]).toBe(
-      "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip"
+      "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip -c.mac.identity=null -c.mac.hardenedRuntime=false"
     );
     expect(packageJson.scripts["electron:publish:mac"]).toBe(
       "node scripts/check-gh-token.js && node scripts/check-mac-signing.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always"
@@ -45,7 +50,7 @@ describe("Electron packaging icon configuration", () => {
     expect(packageJson.scripts["prepare:mac-build"]).toBe("node scripts/clear-macos-xattrs.js");
     expect(packageJson.scripts["release:mac"]).toBe("npm run electron:publish:mac");
     expect(packageJson.build.afterExtract).toBe("scripts/clear-electron-builder-xattrs.js");
-    expect(packageJson.build.beforeSign).toBe("scripts/clear-electron-builder-xattrs.js");
+    expect(packageJson.build.beforeSign).toBeUndefined();
 
     const root = path.join(__dirname, "..");
     expect(fs.existsSync(path.join(root, "scripts", "clear-macos-xattrs.js"))).toBe(true);
