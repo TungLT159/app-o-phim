@@ -44,9 +44,11 @@ describe("Electron packaging icon configuration", () => {
     );
     expect(packageJson.scripts["prepare:mac-build"]).toBe("node scripts/clear-macos-xattrs.js");
     expect(packageJson.scripts["release:mac"]).toBe("npm run electron:publish:mac");
+    expect(packageJson.build.afterExtract).toBe("scripts/clear-electron-builder-xattrs.js");
 
     const root = path.join(__dirname, "..");
     expect(fs.existsSync(path.join(root, "scripts", "clear-macos-xattrs.js"))).toBe(true);
+    expect(fs.existsSync(path.join(root, "scripts", "clear-electron-builder-xattrs.js"))).toBe(true);
     expect(fs.existsSync(path.join(root, "scripts", "check-gh-token.js"))).toBe(true);
     expect(fs.existsSync(path.join(root, "scripts", "check-mac-signing.js"))).toBe(true);
 
