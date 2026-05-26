@@ -37,7 +37,7 @@
     "prepare:mac-build": "node scripts/clear-macos-xattrs.js",
     "electron:dist:mac": "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip",
     "electron:publish:win": "node scripts/check-gh-token.js && npm run prepare:electron-icon && npm run build && electron-builder --win nsis --publish always",
-    "electron:publish:mac": "node scripts/check-gh-token.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always",
+    "electron:publish:mac": "node scripts/check-gh-token.js && node scripts/check-mac-signing.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always",
     "release:win": "npm run electron:publish:win",
     "release:mac": "npm run electron:publish:mac",
     "check:font-loading": "node scripts/check-font-loading.js",
@@ -103,7 +103,7 @@
     },
     "mac": {
       "artifactName": "O-Phim-Mac-${version}-${arch}.${ext}",
-      "identity": null,
+      "hardenedRuntime": true,
       "icon": "public/logo.png",
       "target": [
         "dmg",

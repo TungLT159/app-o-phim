@@ -40,7 +40,7 @@ describe("Electron packaging icon configuration", () => {
       "npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip"
     );
     expect(packageJson.scripts["electron:publish:mac"]).toBe(
-      "node scripts/check-gh-token.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always"
+      "node scripts/check-gh-token.js && node scripts/check-mac-signing.js && npm run prepare:electron-icon && npm run build && npm run prepare:mac-build && electron-builder --mac dmg zip --publish always"
     );
     expect(packageJson.scripts["prepare:mac-build"]).toBe("node scripts/clear-macos-xattrs.js");
     expect(packageJson.scripts["release:mac"]).toBe("npm run electron:publish:mac");
@@ -48,10 +48,12 @@ describe("Electron packaging icon configuration", () => {
     const root = path.join(__dirname, "..");
     expect(fs.existsSync(path.join(root, "scripts", "clear-macos-xattrs.js"))).toBe(true);
     expect(fs.existsSync(path.join(root, "scripts", "check-gh-token.js"))).toBe(true);
+    expect(fs.existsSync(path.join(root, "scripts", "check-mac-signing.js"))).toBe(true);
 
     expect(packageJson.build.mac.target).toEqual(["dmg", "zip"]);
     expect(packageJson.build.mac.artifactName).toBe("O-Phim-Mac-${version}-${arch}.${ext}");
-    expect(packageJson.build.mac.identity).toBeNull();
+    expect(packageJson.build.mac.identity).toBeUndefined();
+    expect(packageJson.build.mac.hardenedRuntime).toBe(true);
     expect(packageJson.build.dmg.artifactName).toBe("O-Phim-Mac-${version}-${arch}.${ext}");
     expect(packageJson.build.mac.icon).toBe("public/logo.png");
   });
@@ -67,5 +69,8 @@ describe("Electron packaging icon configuration", () => {
     expect(workflow).toContain("npm run release:win");
     expect(workflow).toContain("npm run release:mac");
     expect(workflow).toContain("GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
+    expect(workflow).toContain("CSC_LINK: ${{ secrets.MAC_CSC_LINK }}");
+    expect(workflow).toContain("CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}");
+    expect(workflow).toContain("APPLE_ID: ${{ secrets.APPLE_ID }}");
   });
 });
