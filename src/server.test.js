@@ -18,7 +18,7 @@ jest.mock("child_process", () => ({
   }),
 }));
 
-const { startAppServer } = require("../server");
+const { resolveFfmpegPath, startAppServer } = require("../server");
 
 function request(url) {
   return new Promise((resolve, reject) => {
@@ -119,5 +119,23 @@ describe("startAppServer", () => {
       message: "Đang chuyển mã sang MP4 tương thích...",
     });
     expect(body.jobId).toEqual(expect.any(String));
+  });
+
+  test("resolves ffmpeg from app.asar.unpacked in packaged Electron apps", () => {
+    const asarPath = path.join(
+      "C:",
+      "Program Files",
+      "O Phim",
+      "resources",
+      "app.asar",
+      "node_modules",
+      "@ffmpeg-installer",
+      "win32-x64",
+      "ffmpeg.exe",
+    );
+
+    expect(resolveFfmpegPath(asarPath)).toBe(
+      asarPath.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`),
+    );
   });
 });

@@ -257,6 +257,13 @@ function getCompatibleFfmpegArgs(inputUrl, outputPath) {
   ];
 }
 
+function resolveFfmpegPath(ffmpegPath = require("@ffmpeg-installer/ffmpeg").path) {
+  return ffmpegPath.replace(
+    `${path.sep}app.asar${path.sep}`,
+    `${path.sep}app.asar.unpacked${path.sep}`,
+  );
+}
+
 function rewritePlaylist(body, playlistUrl) {
   return body
     .split("\n")
@@ -396,7 +403,7 @@ async function handleDownloadStart(req, res, requestUrl) {
 
   const os = require("os");
   const { spawn } = require("child_process");
-  const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+  const ffmpegPath = resolveFfmpegPath();
   const jobId = createDownloadJobId();
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ophim-dl-"));
   const outputPath = path.join(tmpDir, "download.mp4");
@@ -604,7 +611,7 @@ async function handleDownload(req, res, requestUrl) {
   const qualityLabel = requestedQuality || "hd";
   const filename = `${movieTitle}-${ep}-${qualityLabel}.mp4`;
 
-  const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+  const ffmpegPath = resolveFfmpegPath();
   const { spawn } = require("child_process");
   const os = require("os");
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ophim-dl-"));
@@ -879,5 +886,6 @@ if (require.main === module) {
 module.exports = {
   createAppServer,
   createRequestHandler,
+  resolveFfmpegPath,
   startAppServer,
 };
