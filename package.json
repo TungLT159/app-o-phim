@@ -93,6 +93,7 @@
     },
     "afterPack": "scripts/set-electron-icon.js",
     "afterExtract": "scripts/clear-electron-builder-xattrs.js",
+    "beforeSign": "scripts/clear-electron-builder-xattrs.js",
     "asar": true,
     "win": {
       "icon": "public/logo.png",

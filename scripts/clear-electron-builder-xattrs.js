@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 const { spawnSync } = require("child_process");
 
 function clearXattrs(target) {
@@ -14,4 +15,8 @@ module.exports = async function clearElectronBuilderXattrs(context) {
   if (context.electronPlatformName !== "darwin") return;
 
   clearXattrs(context.appOutDir);
+  const productFilename = context.packager?.appInfo?.productFilename;
+  if (productFilename) {
+    clearXattrs(path.join(context.appOutDir, `${productFilename}.app`));
+  }
 };
