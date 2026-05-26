@@ -55,4 +55,17 @@ describe("Electron packaging icon configuration", () => {
     expect(packageJson.build.dmg.artifactName).toBe("O-Phim-Mac-${version}-${arch}.${ext}");
     expect(packageJson.build.mac.icon).toBe("public/logo.png");
   });
+
+  test("defines a GitHub release workflow for Windows and macOS publishing", () => {
+    const root = path.join(__dirname, "..");
+    const workflowPath = path.join(root, ".github", "workflows", "release.yml");
+    const workflow = fs.readFileSync(workflowPath, "utf8");
+
+    expect(workflow).toContain("release:");
+    expect(workflow).toContain("windows-latest");
+    expect(workflow).toContain("macos-latest");
+    expect(workflow).toContain("npm run release:win");
+    expect(workflow).toContain("npm run release:mac");
+    expect(workflow).toContain("GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
+  });
 });
