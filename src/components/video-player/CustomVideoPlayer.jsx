@@ -7,7 +7,7 @@ import {
 import CustomVideoPlayerChrome from "./CustomVideoPlayerChrome";
 import "./custom-video-player.scss";
 
-const shouldUseNativeControls = () => {
+export const shouldUseNativeControls = () => {
   if (typeof window === "undefined" || !window.matchMedia) return false;
 
   const userAgent = window.navigator?.userAgent || "";
@@ -44,6 +44,15 @@ const CustomVideoPlayer = ({
   title,
   episodeName,
   episodeGroupTitle,
+  canGoPrevEpisode = false,
+  canGoNextEpisode = false,
+  nextEpisodeName,
+  showAutoPlayNotice = false,
+  autoPlayCountdown = null,
+  autoPlayDuration = 10,
+  onPrevEpisode,
+  onNextEpisode,
+  onCancelAutoPlay,
 }) => {
   const playerRef = useRef(null);
   const hideControlsTimerRef = useRef(null);
@@ -138,10 +147,12 @@ const CustomVideoPlayer = ({
       if (typeof point.clientX !== "number") return;
 
       const bounds = playerRef.current.getBoundingClientRect();
-      const side = point.clientX - bounds.left < bounds.width / 2 ? "left" : "right";
+      const side =
+        point.clientX - bounds.left < bounds.width / 2 ? "left" : "right";
       const now = Date.now();
       const isDoubleTap =
-        lastTapRef.current.side === side && now - lastTapRef.current.time <= 300;
+        lastTapRef.current.side === side &&
+        now - lastTapRef.current.time <= 300;
 
       if (isDoubleTap) {
         const seconds = side === "left" ? -10 : 10;
@@ -277,7 +288,9 @@ const CustomVideoPlayer = ({
 
     video.controls = useNativeControls;
     setCanUsePictureInPicture(
-      Boolean(document.pictureInPictureEnabled && video.requestPictureInPicture),
+      Boolean(
+        document.pictureInPictureEnabled && video.requestPictureInPicture,
+      ),
     );
     syncVolume();
 
@@ -290,8 +303,14 @@ const CustomVideoPlayer = ({
     video.addEventListener("waiting", handleWaiting);
     video.addEventListener("error", handleError);
     video.addEventListener("volumechange", syncVolume);
-    video.addEventListener("enterpictureinpicture", handleEnterPictureInPicture);
-    video.addEventListener("leavepictureinpicture", handleLeavePictureInPicture);
+    video.addEventListener(
+      "enterpictureinpicture",
+      handleEnterPictureInPicture,
+    );
+    video.addEventListener(
+      "leavepictureinpicture",
+      handleLeavePictureInPicture,
+    );
 
     return () => {
       video.removeEventListener("play", syncPlayback);
@@ -343,7 +362,9 @@ const CustomVideoPlayer = ({
         return;
       }
 
-      if ([" ", "ArrowLeft", "ArrowRight", "m", "M", "f", "F"].includes(event.key)) {
+      if (
+        [" ", "ArrowLeft", "ArrowRight", "m", "M", "f", "F"].includes(event.key)
+      ) {
         event.preventDefault();
       }
 
@@ -428,8 +449,17 @@ const CustomVideoPlayer = ({
 
   if (useNativeControls) {
     return (
-      <div ref={playerRef} className="custom-video-player custom-video-player--native">
-        <video ref={videoRef} autoPlay playsInline controls controlsList="nodownload">
+      <div
+        ref={playerRef}
+        className="custom-video-player custom-video-player--native"
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          controls
+          controlsList="nodownload"
+        >
           Trình duyệt của bạn không hỗ trợ video HTML5.
         </video>
         {fpsDebugOverlay}
@@ -442,6 +472,11 @@ const CustomVideoPlayer = ({
         .filter(Boolean)
         .join(" - ")
     : "";
+  const nextEpisodeLabel = nextEpisodeName
+    ? formatEpisodeDisplayName(nextEpisodeName)
+    : "Tập tiếp theo";
+  const shouldShowCustomAutoPlayNotice =
+    showAutoPlayNotice && autoPlayCountdown !== null && onNextEpisode;
 
   return (
     <div
@@ -498,11 +533,44 @@ const CustomVideoPlayer = ({
         </button>
       )}
 
+      {shouldShowCustomAutoPlayNotice && (
+        <div className="custom-video-player__autoplay-card" role="status">
+          <div className="custom-video-player__autoplay-copy">
+            <span>Tiếp theo</span>
+            <strong>{nextEpisodeLabel}</strong>
+            <small>Tập sẽ tự phát sau ít giây nữa</small>
+          </div>
+          <div className="custom-video-player__autoplay-actions">
+            <button
+              className="custom-video-player__autoplay-action custom-video-player__autoplay-action--play"
+              type="button"
+              onClick={onNextEpisode}
+              aria-label="Phát tập tiếp theo ngay"
+              style={{ "--autoplay-duration": `${autoPlayDuration}s` }}
+            >
+              <span>Phát ngay</span>
+            </button>
+            <button
+              className="custom-video-player__autoplay-action custom-video-player__autoplay-action--cancel"
+              type="button"
+              onClick={onCancelAutoPlay}
+              aria-label="Hủy tự động phát"
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
+
       {fpsDebugOverlay}
 
       <CustomVideoPlayerChrome
         title={title}
         episodeLabel={episodeLabel}
+        episodeNavigation={{
+          canGoPrevEpisode,
+          canGoNextEpisode,
+        }}
         playbackState={{
           showControls,
           isPlaying,
@@ -518,6 +586,8 @@ const CustomVideoPlayer = ({
         onTogglePlay={togglePlay}
         onSeekBackward={() => seekBy(-10)}
         onSeekForward={() => seekBy(10)}
+        onPrevEpisode={onPrevEpisode}
+        onNextEpisode={onNextEpisode}
         onToggleMute={toggleMute}
         onVolumeChange={handleVolumeChange}
         onTogglePictureInPicture={togglePictureInPicture}

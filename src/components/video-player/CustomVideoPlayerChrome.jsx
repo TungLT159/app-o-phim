@@ -23,18 +23,35 @@ const PictureInPictureIcon = () => (
     aria-hidden="true"
     focusable="false"
   >
-    <rect className="custom-video-player__picture-in-picture-screen" x="3" y="5" width="18" height="14" rx="2" />
-    <rect className="custom-video-player__picture-in-picture-window" x="13" y="12" width="6" height="4" rx="1" />
+    <rect
+      className="custom-video-player__picture-in-picture-screen"
+      x="3"
+      y="5"
+      width="18"
+      height="14"
+      rx="2"
+    />
+    <rect
+      className="custom-video-player__picture-in-picture-window"
+      x="13"
+      y="12"
+      width="6"
+      height="4"
+      rx="1"
+    />
   </svg>
 );
 
 const CustomVideoPlayerChrome = ({
   title,
   episodeLabel,
+  episodeNavigation,
   playbackState,
   onSeek,
   onTogglePlay,
   onSeekBackward,
+  onPrevEpisode,
+  onNextEpisode,
   onSeekForward,
   onToggleMute,
   onVolumeChange,
@@ -54,7 +71,11 @@ const CustomVideoPlayerChrome = ({
   } = playbackState;
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumePercent = `${(isMuted ? 0 : volume) * 100}%`;
-  const volumeIcon = isMuted || volume === 0 ? "bx-volume-mute" : "bx-volume-full";
+  const volumeIcon =
+    isMuted || volume === 0 ? "bx-volume-mute" : "bx-volume-full";
+  const canGoPrevEpisode = Boolean(episodeNavigation?.canGoPrevEpisode);
+  const canGoNextEpisode = Boolean(episodeNavigation?.canGoNextEpisode);
+  const hasEpisodeNavigation = Boolean(onPrevEpisode || onNextEpisode);
 
   return (
     <div
@@ -109,6 +130,30 @@ const CustomVideoPlayerChrome = ({
           <i className="bx bx-fast-forward" />
           <span>10</span>
         </button>
+        {hasEpisodeNavigation && (
+          <button
+            className="custom-video-player__control-btn custom-video-player__control-btn--episode"
+            type="button"
+            onClick={onPrevEpisode}
+            disabled={!canGoPrevEpisode}
+            aria-label="Tập trước"
+          >
+            <i className="bx bx-skip-previous" />
+            <span>Tập trước</span>
+          </button>
+        )}
+        {hasEpisodeNavigation && (
+          <button
+            className="custom-video-player__control-btn custom-video-player__control-btn--episode"
+            type="button"
+            onClick={onNextEpisode}
+            disabled={!canGoNextEpisode}
+            aria-label="Tập tiếp"
+          >
+            <span>Tập tiếp</span>
+            <i className="bx bx-skip-next" />
+          </button>
+        )}
         <div className="custom-video-player__volume">
           <button
             className="custom-video-player__control-btn custom-video-player__control-btn--mute"
@@ -134,7 +179,9 @@ const CustomVideoPlayerChrome = ({
             className="custom-video-player__control-btn custom-video-player__control-btn--picture-in-picture"
             type="button"
             onClick={onTogglePictureInPicture}
-            aria-label={isPictureInPicture ? "Thoát hình trong hình" : "Hình trong hình"}
+            aria-label={
+              isPictureInPicture ? "Thoát hình trong hình" : "Hình trong hình"
+            }
           >
             <PictureInPictureIcon />
           </button>
@@ -145,7 +192,9 @@ const CustomVideoPlayerChrome = ({
           onClick={onToggleFullscreen}
           aria-label={isFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
         >
-          <i className={`bx ${isFullscreen ? "bx-exit-fullscreen" : "bx-fullscreen"}`} />
+          <i
+            className={`bx ${isFullscreen ? "bx-exit-fullscreen" : "bx-fullscreen"}`}
+          />
         </button>
       </div>
     </div>

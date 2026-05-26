@@ -121,7 +121,8 @@ const mockPictureInPictureSupport = ({
   });
 
   if (videoEnabled) {
-    HTMLVideoElement.prototype.requestPictureInPicture = requestPictureInPicture;
+    HTMLVideoElement.prototype.requestPictureInPicture =
+      requestPictureInPicture;
   } else {
     delete HTMLVideoElement.prototype.requestPictureInPicture;
   }
@@ -178,6 +179,29 @@ const renderPlayerWithEpisodeMeta = ({ episodeName, episodeGroupTitle }) => {
   );
 };
 
+const renderPlayerWithEpisodeControls = (props = {}) => {
+  const videoRef = React.createRef();
+  const defaultProps = {
+    canGoPrevEpisode: true,
+    canGoNextEpisode: true,
+    nextEpisodeName: "2",
+    onPrevEpisode: jest.fn(),
+    onNextEpisode: jest.fn(),
+    onCancelAutoPlay: jest.fn(),
+  };
+  const playerProps = { ...defaultProps, ...props };
+  const view = render(
+    <CustomVideoPlayer
+      videoRef={videoRef}
+      title="Test Movie"
+      episodeName="1"
+      {...playerProps}
+    />,
+  );
+
+  return { ...view, playerProps };
+};
+
 const mockPlayerBounds = (container) => {
   const player = container.querySelector(".custom-video-player");
   player.getBoundingClientRect = jest.fn(() => ({
@@ -207,6 +231,89 @@ test("renders title, episode, and custom controls", () => {
   expect(container.querySelector(".custom-video-player__meta")).toHaveClass(
     "custom-video-player__meta--pass-through",
   );
+});
+
+test("renders custom episode navigation controls", () => {
+  renderPlayerWithEpisodeControls();
+
+  expect(screen.getByLabelText("Tập trước")).toBeInTheDocument();
+  expect(screen.getByLabelText("Tập tiếp")).toBeInTheDocument();
+});
+
+test("calls episode navigation handlers from custom controls", () => {
+  const { playerProps } = renderPlayerWithEpisodeControls();
+
+  fireEvent.click(screen.getByLabelText("Tập trước"));
+  fireEvent.click(screen.getByLabelText("Tập tiếp"));
+
+  expect(playerProps.onPrevEpisode).toHaveBeenCalledTimes(1);
+  expect(playerProps.onNextEpisode).toHaveBeenCalledTimes(1);
+});
+
+test("disables unavailable custom episode navigation controls", () => {
+  renderPlayerWithEpisodeControls({
+    canGoPrevEpisode: false,
+    canGoNextEpisode: false,
+  });
+
+  expect(screen.getByLabelText("Tập trước")).toBeDisabled();
+  expect(screen.getByLabelText("Tập tiếp")).toBeDisabled();
+});
+
+test("does not render custom episode controls with native video controls", () => {
+  mockCoarsePointer(true);
+
+  renderPlayerWithEpisodeControls();
+
+  expect(screen.queryByLabelText("Tập trước")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Tập tiếp")).not.toBeInTheDocument();
+});
+
+test("renders custom auto-next overlay with progress fill", () => {
+  const { container } = renderPlayerWithEpisodeControls({
+    showAutoPlayNotice: true,
+    autoPlayCountdown: 5,
+    autoPlayDuration: 10,
+  });
+
+  expect(screen.getByText("Tiếp theo")).toBeInTheDocument();
+  expect(screen.getByText("Tập 2")).toBeInTheDocument();
+  expect(screen.getByLabelText("Phát tập tiếp theo ngay")).toBeInTheDocument();
+  expect(screen.getByLabelText("Hủy tự động phát")).toBeInTheDocument();
+  expect(
+    container.querySelector(".custom-video-player__autoplay-action"),
+  ).toHaveStyle({
+    "--autoplay-duration": "10s",
+  });
+});
+
+test("custom auto-next overlay plays now and cancels", () => {
+  const { playerProps } = renderPlayerWithEpisodeControls({
+    showAutoPlayNotice: true,
+    autoPlayCountdown: 5,
+    autoPlayDuration: 10,
+  });
+
+  fireEvent.click(screen.getByLabelText("Phát tập tiếp theo ngay"));
+  fireEvent.click(screen.getByLabelText("Hủy tự động phát"));
+
+  expect(playerProps.onNextEpisode).toHaveBeenCalledTimes(1);
+  expect(playerProps.onCancelAutoPlay).toHaveBeenCalledTimes(1);
+});
+
+test("does not render custom auto-next overlay with native video controls", () => {
+  mockCoarsePointer(true);
+
+  renderPlayerWithEpisodeControls({
+    showAutoPlayNotice: true,
+    autoPlayCountdown: 5,
+    autoPlayDuration: 10,
+  });
+
+  expect(screen.queryByText("Tiếp theo")).not.toBeInTheDocument();
+  expect(
+    screen.queryByLabelText("Phát tập tiếp theo ngay"),
+  ).not.toBeInTheDocument();
 });
 
 test("shows FPS debug overlay when debugFps query is enabled", () => {
@@ -272,8 +379,12 @@ test("uses native video controls on coarse pointer devices", () => {
 
   expect(video).toHaveAttribute("controls");
   expect(video.controls).toBe(true);
-  expect(container.querySelector(".custom-video-player__chrome")).not.toBeInTheDocument();
-  expect(container.querySelector(".custom-video-player__hit-area")).not.toBeInTheDocument();
+  expect(
+    container.querySelector(".custom-video-player__chrome"),
+  ).not.toBeInTheDocument();
+  expect(
+    container.querySelector(".custom-video-player__hit-area"),
+  ).not.toBeInTheDocument();
 });
 
 test("uses custom controls on TV browsers even when hover is unavailable", () => {
@@ -285,7 +396,9 @@ test("uses custom controls on TV browsers even when hover is unavailable", () =>
   const { container, video } = renderPlayer();
 
   expect(video).not.toHaveAttribute("controls");
-  expect(container.querySelector(".custom-video-player__chrome")).toBeInTheDocument();
+  expect(
+    container.querySelector(".custom-video-player__chrome"),
+  ).toBeInTheDocument();
   expect(screen.getByLabelText("Tua video")).toBeInTheDocument();
 });
 
@@ -296,7 +409,9 @@ test("uses custom controls on large non-touch screens even when hover is unavail
   const { container, video } = renderPlayer();
 
   expect(video).not.toHaveAttribute("controls");
-  expect(container.querySelector(".custom-video-player__chrome")).toBeInTheDocument();
+  expect(
+    container.querySelector(".custom-video-player__chrome"),
+  ).toBeInTheDocument();
   expect(screen.getByLabelText("Tua video")).toBeInTheDocument();
 });
 
@@ -371,7 +486,9 @@ test("requests Picture-in-Picture from the control", async () => {
 
 test("keeps player usable when Picture-in-Picture request is rejected", async () => {
   mockPictureInPictureSupport({
-    requestPictureInPicture: jest.fn(() => Promise.reject(new Error("blocked"))),
+    requestPictureInPicture: jest.fn(() =>
+      Promise.reject(new Error("blocked")),
+    ),
   });
   const { video } = renderPlayer();
 
