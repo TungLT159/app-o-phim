@@ -44,6 +44,25 @@ test("skips empty episode groups while preserving original group identity", () =
   });
 });
 
+test("disambiguates duplicate episode slugs within the same upstream group", () => {
+  const groups = buildEpisodeGroups([
+    {
+      server_name: "Vietsub",
+      server_data: [
+        { name: "641", slug: "641" },
+        { name: "642", slug: "642" },
+        { name: "641", slug: "641" },
+      ],
+    },
+  ]);
+
+  expect(groups[0].episodes.map((episode) => episode.episodeKey)).toEqual([
+    "0:641",
+    "0:642",
+    "0:641:2",
+  ]);
+});
+
 test("selecting a flattened episode updates the current episode without rebuilding the item", () => {
   const { result } = renderHook(() =>
     useEpisodeCatalog(itemWithTwoGroups, "0:tap-2"),
@@ -66,9 +85,12 @@ test("preserves the selected episode when rebuilt item data still contains it", 
     })),
   });
 
-  const { result, rerender } = renderHook(({ item }) => useEpisodeCatalog(item), {
-    initialProps: { item: buildItem() },
-  });
+  const { result, rerender } = renderHook(
+    ({ item }) => useEpisodeCatalog(item),
+    {
+      initialProps: { item: buildItem() },
+    },
+  );
 
   act(() => {
     result.current.selectEpisode(result.current.episodeList[2]);

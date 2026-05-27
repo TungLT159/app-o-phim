@@ -40,6 +40,7 @@ $header-gradient: linear-gradient(180deg, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15
     max-width: 1920px;
     margin: 0 auto;
     overflow-y: hidden;
+
     @include tablet {
       padding: 0 2rem;
     }
@@ -173,6 +174,15 @@ $header-gradient: linear-gradient(180deg, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15
     position: relative;
     z-index: 10000;
 
+    &::before {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 280px;
+      height: $header-height;
+    }
+
     span {
       font-weight: 600;
       font-size: 1rem;
@@ -217,7 +227,7 @@ $header-gradient: linear-gradient(180deg, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15
     /* ===== DROPDOWN ===== */
     .nav-submenu {
       position: fixed;
-      top: 85px;
+      top: $header-height;
       left: auto;
       min-width: 240px;
       max-width: 280px;
@@ -306,6 +316,10 @@ $header-gradient: linear-gradient(180deg, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15
   @include mobile {
     display: none;
   }
+}
+
+.header.shrink .header__nav.desktop .nav-submenu {
+  top: $header-shrink-height;
 }
 
 /* ================= DESKTOP SEARCH ================= */
@@ -879,6 +893,10 @@ $header-gradient: linear-gradient(180deg, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15
     }
   }
 
+  .header.shrink .header__nav.desktop .nav-submenu {
+    top: 70px;
+  }
+
   .header__search {
     max-width: 420px;
     padding: 12px 18px;
@@ -954,6 +972,10 @@ $header-gradient: linear-gradient(180deg, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15
         font-size: 0.9rem;
       }
     }
+  }
+
+  .header.shrink .header__nav.desktop .nav-submenu {
+    top: 60px;
   }
 
   .header__search {

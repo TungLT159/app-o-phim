@@ -190,7 +190,7 @@
     .episode-btn {
       position: relative;
       width: 100%;
-      min-height: 48px;
+      height: 60px;
       padding: 12px 8px;
       border: 2px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
@@ -208,9 +208,10 @@
 
       &__number {
         display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        line-height: 1.15;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
       }
 
       // Hover state
@@ -301,7 +302,7 @@
       }
 
       .episode-btn {
-        min-height: 44px;
+        height: 54px;
         padding: 10px 6px;
         font-size: 0.8125rem;
       }
@@ -368,7 +369,7 @@
       }
 
       .episode-btn {
-        min-height: 40px;
+        height: 48px;
         padding: 8px 4px;
         font-size: 0.75rem;
         border-width: 1.5px;
@@ -402,7 +403,7 @@
       }
 
       .episode-btn {
-        min-height: 52px;
+        height: 64px;
         padding: 14px 10px;
         font-size: 0.95rem;
         border-radius: 10px;
@@ -447,7 +448,7 @@
       }
 
       .episode-btn {
-        min-height: 64px;
+        height: 80px;
         padding: 18px 12px;
         font-size: 1.125rem;
         border-radius: 12px;

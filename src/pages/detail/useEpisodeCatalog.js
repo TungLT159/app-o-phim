@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatEpisodeGroupTitle } from "../../utils/episodeGroupTitle";
 
-export const getEpisodeIdentity = (episode) => episode?.episodeKey || episode?.name;
+export const getEpisodeIdentity = (episode) =>
+  episode?.episodeKey || episode?.name;
 
 export const buildEpisodeGroups = (episodes = []) => {
   const groups = [];
@@ -13,16 +14,25 @@ export const buildEpisodeGroups = (episodes = []) => {
     if (!serverEpisodes.length) continue;
 
     const title = formatEpisodeGroupTitle(server.server_name, groupIndex);
+    const seenEpisodeKeys = new Set();
 
     groups.push({
       title,
-      episodes: serverEpisodes.map((episode, episodeIndex) => ({
-        ...episode,
-        episodeGroupIndex: groupIndex,
-        episodeGroupName: server.server_name,
-        episodeGroupTitle: title,
-        episodeKey: `${groupIndex}:${episode.slug || episode.name || episodeIndex}`,
-      })),
+      episodes: serverEpisodes.map((episode, episodeIndex) => {
+        const baseEpisodeKey = `${groupIndex}:${episode.slug || episode.name || episodeIndex}`;
+        const episodeKey = seenEpisodeKeys.has(baseEpisodeKey)
+          ? `${baseEpisodeKey}:${episodeIndex}`
+          : baseEpisodeKey;
+        seenEpisodeKeys.add(baseEpisodeKey);
+
+        return {
+          ...episode,
+          episodeGroupIndex: groupIndex,
+          episodeGroupName: server.server_name,
+          episodeGroupTitle: title,
+          episodeKey,
+        };
+      }),
     });
   }
 
@@ -54,9 +64,7 @@ const findEpisodeByIdentity = (episodeList, episode) => {
   if (!identity) return null;
 
   return (
-    episodeList.find(
-      (item) => getEpisodeIdentity(item) === identity,
-    ) || null
+    episodeList.find((item) => getEpisodeIdentity(item) === identity) || null
   );
 };
 
@@ -64,7 +72,9 @@ const EMPTY_EPISODES = [];
 
 export const useEpisodeCatalog = (item, epFromUrl) => {
   const episodeSource =
-    item?.episode_current === "Trailer" ? EMPTY_EPISODES : item?.episodes || EMPTY_EPISODES;
+    item?.episode_current === "Trailer"
+      ? EMPTY_EPISODES
+      : item?.episodes || EMPTY_EPISODES;
 
   const allEpisodeGroups = useMemo(
     () => buildEpisodeGroups(episodeSource),
