@@ -11,6 +11,7 @@ const movieCache = new Map();
 const downloadJobs = new Map();
 const MOVIE_CACHE_TTL_MS = 5 * 60 * 1000;
 const DOWNLOAD_JOB_TTL_MS = 60 * 60 * 1000;
+const STREAM_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -36,7 +37,7 @@ function createStreamProxyUrl(url) {
   const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   streamTokens.set(token, {
     url,
-    expiresAt: Date.now() + 30 * 60 * 1000,
+    expiresAt: Date.now() + STREAM_TOKEN_TTL_MS,
   });
   return `/api/stream?t=${encodeURIComponent(token)}`;
 }

@@ -55,6 +55,7 @@ describe("startAppServer", () => {
     fs.rmSync(buildDir, { recursive: true, force: true });
     delete global.fetch;
     jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   test("starts on an available local port and serves the React shell", async () => {
@@ -119,6 +120,58 @@ describe("startAppServer", () => {
       message: "Đang chuyển mã sang MP4 tương thích...",
     });
     expect(body.jobId).toEqual(expect.any(String));
+  });
+
+  test("keeps rewritten stream segment tokens valid during long playback", async () => {
+    const startedAt = new Date("2026-01-01T00:00:00.000Z").getTime();
+    jest.spyOn(Date, "now").mockReturnValue(startedAt);
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            item: {
+              name: "Test Movie",
+              episodes: [
+                {
+                  server_data: [
+                    {
+                      name: "1",
+                      slug: "tap-1",
+                      link_m3u8: "https://cdn.example/long-movie/master.m3u8",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => "application/vnd.apple.mpegurl" },
+        text: async () => "#EXTM3U\n#EXTINF:10,\nsegment-120.ts\n",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => "video/mp2t" },
+        body: null,
+      });
+    appServer = await startAppServer({ buildDir, port: 0 });
+
+    const episodeResponse = await request(
+      `${appServer.url}/api/phim/long-movie/episode?name=tap-1`,
+    );
+    const playlistUrl = JSON.parse(episodeResponse.body).playlistUrl;
+    const playlistResponse = await request(`${appServer.url}${playlistUrl}`);
+    const segmentUrl = playlistResponse.body
+      .split("\n")
+      .find((line) => line.startsWith("/api/stream"));
+
+    Date.now.mockReturnValue(startedAt + 2 * 60 * 60 * 1000);
+    const segmentResponse = await request(`${appServer.url}${segmentUrl}`);
+
+    expect(segmentResponse.statusCode).toBe(200);
   });
 
   test("resolves ffmpeg from app.asar.unpacked in packaged Electron apps", () => {
