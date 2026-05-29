@@ -34,7 +34,12 @@ describe("Electron main watch history integration", () => {
     };
     BrowserWindow = jest.fn((options) => {
       createdWindowOptions = options;
-      return { loadURL: jest.fn(), on: jest.fn(), webContents };
+      return {
+        loadURL: jest.fn(),
+        on: jest.fn(),
+        setMenuBarVisibility: jest.fn(),
+        webContents,
+      };
     });
     BrowserWindow.getAllWindows = jest.fn(() => []);
     BrowserWindow.getFocusedWindow = jest.fn(() => null);
@@ -118,6 +123,16 @@ describe("Electron main watch history integration", () => {
       nodeIntegration: false,
       sandbox: true,
     });
+  });
+
+  test("hides the default Electron menu bar", async () => {
+    const { createMainWindow } = require("./main");
+
+    await createMainWindow();
+    const window = BrowserWindow.mock.results[0].value;
+
+    expect(createdWindowOptions.autoHideMenuBar).toBe(true);
+    expect(window.setMenuBarVisibility).toHaveBeenCalledWith(false);
   });
 
   test("navigation handlers gate back and forward and return state", async () => {

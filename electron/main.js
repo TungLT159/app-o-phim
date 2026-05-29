@@ -98,6 +98,7 @@ async function createMainWindow() {
     backgroundColor: "#000000",
     icon: appIcon,
     title: "O Phim",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -105,6 +106,7 @@ async function createMainWindow() {
       sandbox: true,
     },
   });
+  mainWindow.setMenuBarVisibility(false);
 
   mainWindow.webContents?.on?.("did-navigate", () => sendNavigationState(mainWindow));
   mainWindow.webContents?.on?.("did-navigate-in-page", () => sendNavigationState(mainWindow));
