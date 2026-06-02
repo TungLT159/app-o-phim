@@ -206,6 +206,60 @@ test("passes episode navigation props to the custom video player", async () => {
   );
 });
 
+test("starts autoplay countdown when a long video reaches 95 percent watched", async () => {
+  renderDetail("/movie/test-movie?ep=0:tap-1");
+
+  const video = await screen.findByTestId("video-player");
+  setMediaProperty(video, "duration", 1200);
+  setMediaProperty(video, "currentTime", 1140);
+
+  fireEvent(video, new Event("timeupdate"));
+
+  await waitFor(() =>
+    expect(mockCustomVideoPlayer.mock.calls.at(-1)[0]).toEqual(
+      expect.objectContaining({
+        showAutoPlayNotice: true,
+        autoPlayCountdown: 10,
+      }),
+    ),
+  );
+});
+
+test("does not start autoplay countdown before the minimum 10-second window", async () => {
+  renderDetail("/movie/test-movie?ep=0:tap-1");
+
+  const video = await screen.findByTestId("video-player");
+  setMediaProperty(video, "duration", 100);
+  setMediaProperty(video, "currentTime", 89.5);
+
+  fireEvent(video, new Event("timeupdate"));
+
+  expect(mockCustomVideoPlayer.mock.calls.at(-1)[0]).toEqual(
+    expect.objectContaining({
+      showAutoPlayNotice: false,
+      autoPlayCountdown: null,
+    }),
+  );
+});
+
+test("hides the download button by default", async () => {
+  renderDetail("/movie/test-movie?ep=0:tap-1");
+
+  await screen.findByTestId("video-player");
+
+  expect(
+    screen.queryByRole("button", { name: /Tải về/i }),
+  ).not.toBeInTheDocument();
+});
+
+test("shows the download button when download query param is enabled", async () => {
+  renderDetail("/movie/test-movie?ep=0:tap-1&download=1");
+
+  await screen.findByTestId("video-player");
+
+  expect(screen.getByRole("button", { name: /Tải về/i })).toBeInTheDocument();
+});
+
 test("shows saved progress notice for progress at the 1 percent threshold", async () => {
   localStorage.setItem(
     "ophim_watch_history:v1",
